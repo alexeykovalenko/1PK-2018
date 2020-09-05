@@ -145,6 +145,6 @@ tab21[c("FO_name", "Subj_Name", "Col_num")] <- lapply(tab21[c("FO_name", "Subj_N
 
 
 ```{r tab21formation, echo = FALSE}
-#Вывод таблицы 1.1 в отчет
+#Вывод таблицы 2.1 в отчет
 get_dt(tab21, , 'tab21_data')
 ```
