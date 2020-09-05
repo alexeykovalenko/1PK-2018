@@ -1,0 +1,26 @@
+--- 
+title: "Обзор ДПО в РФ. Региональные различия. По данным 1-ПК 2018"
+author: "Алексей Коваленко"
+date: "`r Sys.Date()`"
+site: bookdown::bookdown_site
+code_folding: hide
+output: bookdown::gitbook
+documentclass: book
+bibliography: [book.bib, packages.bib]
+biblio-style: apalike
+link-citations: yes
+github-repo: rstudio/bookdown-demo
+description: "Отчет, содержащий графики и диаграммы, иллюстрирующие состояние системы ДПО в РФ и региональные различия в разрезе субъектов федерации. The output format for this example is bookdown::gitbook."
+---
+
+# Введение {-}
+
+В этом отчете представлено описательно-сравнительное исследование системы ДПО России, выполненного на основе анализ отчетных форм 1-ПК, агрегированных по субъектам федерации. Структура отчета повторяет стркутуру формы статистического наблюдения 1-ПК: каждой таблице формы соответствует раздел отчета.
+
+
+```{r include=FALSE}
+# automatically create a bib database for R packages
+knitr::write_bib(c(
+  .packages(), 'bookdown', 'knitr', 'rmarkdown'
+), 'packages.bib')
+```

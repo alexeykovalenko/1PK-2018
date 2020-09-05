@@ -1,0 +1,930 @@
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning=FALSE, message=FALSE)
+```
+
+
+```{r}
+library(tidyverse)
+library(kableExtra)
+library(data.table)
+library(ggplot2)
+library(cluster) #Библиотека для каластерного анализа
+library(captioner) #Библиотка для нумерации таблиц и рисунков и вообще всего
+library(treemap) #Библиотека для площадных диаграмм
+library(RColorBrewer) #Пакет для цветовых схем для диаграмм
+#library(readxl) экспериментировал с импотром из экселя
+library(DT) #экспериментировал с datatable
+#library(htmltools) экспериментировал с datatable
+```
+
+```{r}
+# Функция вывода таблицы с помощью библиотеки DT, 
+get_dt = function(top_data, col_names = c("Федеральный округ" = "FO_name", "Субъект федерации" = "Subj_Name", "Срез показателя" = "Col_num"), output_file_name) {
+  datatable(top_data, colnames = col_names, extensions = 'Buttons',
+            escape = FALSE,
+            rownames = FALSE,
+            filter = 'top',
+            options = list(searching = TRUE,
+                           pageLength = 10,
+                           lengthMenu = c(8, 10, 85, 100),
+                           dom = 'Bfrtip',
+                           buttons = 
+                               list('colvis', list(
+                                   extend = 'collection',
+                                   buttons = list(list(extend='csv',
+                                                       filename = output_file_name),
+                                                  list(extend='excel',
+                                                       filename = output_file_name),
+                                                  list(extend='pdf',
+                                                       filename= output_file_name)),
+                                   text = 'Download'
+                               )),
+                           scrollX = TRUE,
+                           pageLength = nrow(top_data))) 
+}
+
+#Функция установки счетчика нумерации для таблиц
+table_nums <- captioner(prefix = "Таблица", levels = 2)
+
+#Функция установки счетчика нумерации для таблиц
+pic_nums <- captioner(prefix = "Рисунок", levels = 2)
+
+
+#Функция для импорта данных из csv файлов в переменные R (требует имя файла в кавычках и берет из каталока data рабочей директории проекта)
+import_table = function(file_name){
+    read_delim(paste0("data/", file_name), ";", 
+                 escape_double = FALSE, locale = locale(decimal_mark = ",", 
+                 grouping_mark = "", encoding = "WINDOWS-1251"), 
+                 trim_ws = TRUE)
+}
+```
+
+
+
+
+
+
+# Общие сведения об образовательных организациях  {#main-info}
+## Тип организации
+
+
+```{r data11_import, echo = FALSE}
+#Чтение таблицы исходных данных подраздела запись данных в переменную
+tab11 <- import_table("tab11.csv")
+
+#Факторизация переменных "Федеральный округ", "Субъект федерации"
+tab11[c("FO_name", "Subj_Name")] <- lapply(tab11[c("FO_name", "Subj_Name")] , factor)
+
+```
+
+Таблица исходных данных для данного подраздела. Значения столбцов 1-5 -- количество организаций (штук) следующих типов:
+
+1. Организация  дополнительного профессионального образования.
+
+2. Профессиональная образовательная организация
+
+3. Образовательная организация высшего образования
+
+4. Научная организация
+
+5. Иная организация
+
+Нумерация столбцов в таблице `r table_nums("tab11", display = "num")` соответствует номерам строк в таблице 1.1 формы 1-ПК.
+
+```{r echo = FALSE}
+table_nums(name = "tab11", caption = "Исходные данные раздела 1.1 формы 1-ПК, 2018", display = FALSE)
+```
+
+`r table_nums("tab11")`
+
+```{r tab11formation, echo = FALSE}
+#Вывод таблицы 1.1 в отчет
+get_dt(tab11, c("Федеральный округ" = "FO_name", "Субъект федерации" = "Subj_Name", "Всего" = "Total_Value"), 'tab11_data')
+```
+
+
+
+На рисунке (`r pic_nums("All_DPO_Org_By_Subj", display = "num")`) ниже данные таблицы `r table_nums("tab11", display = "num")` представлены в виде гистограммы с сортировкой по суммарному числу учреждений. В пятерку лидеров по чиселнности учреждений, реализующих программы ДПО попали:
+
+* Москва (367);
+
+* Краснодарский край (265);
+
+* Самарская область (258);
+
+* Московская область (227);
+
+* Челябинская область (206).
+
+Меньше всего учреждений, реализующих ДПО, в следующих субъектах:
+
+* Севастополь (7);
+
+* Чеченская Республика (7);
+
+* Карачаево-Черкесская Республика (6);
+
+* Ненецкий автономный округ (5);
+
+* Республика Ингушетия (5);
+
+* Чукотский автономный округ (5).
+
+```{r tab11subset, echo = FALSE, fig.width=10,fig.height=11}
+
+pic_nums(name = "All_DPO_Org_By_Subj", caption = "Число учреждений, реализующих программы ДПО по субъектам федерации", display = FALSE)
+
+#Собираем сабсет из таблицы 11 для ggplot
+subset11 <- rbind(
+                 data.table(FO_name = tab11$FO_name, Subj_name = tab11$Subj_Name, type = "Организация ДПО", number = tab11$`1`),
+                 data.table(FO_name = tab11$FO_name, Subj_name = tab11$Subj_Name, type = "Профессиональная ОО", number = tab11$`2`),
+                 data.table(FO_name = tab11$FO_name, Subj_name = tab11$Subj_Name, type = "Организация ВПО", number = tab11$`3`),
+                 data.table(FO_name = tab11$FO_name, Subj_name = tab11$Subj_Name, type = "Научная организация", number = tab11$`4`),
+                 data.table(FO_name = tab11$FO_name, Subj_name = tab11$Subj_Name, type = "Иная организация", number = tab11$`5`)
+                 )
+
+# Факторизуем столбец type
+subset11$type <- factor(subset11$type)
+
+#Стоим гистограмму численности организаций
+g <- ggplot(subset11, aes(x = reorder(Subj_name, number, sum), y = number)) + 
+       geom_col(aes(fill=type), width = 0.7) + 
+       labs(title="Распределение числа учреждений, реализующих программы ДПО", 
+       subtitle="по субъектам федерации в разбивке по типам учтеждений",
+       y = "Число организацй", x = "Субъект федерации", type = "Тип организации") +
+       scale_fill_discrete(name = "Тип организации: ") +
+       theme(plot.title = element_text(hjust = .5)) +
+       theme(plot.subtitle = element_text(hjust = .5)) +
+       theme(axis.text.y = element_text(size = 10)) +
+       theme(legend.position = c(1,1), legend.justification = c(1,2),
+              legend.background = element_blank()) +
+coord_flip()
+
+g
+```
+
+`r pic_nums("All_DPO_Org_By_Subj")`
+
+Более наглядно представить соотносшение федеральных округов и субъектов федерации по числу образовательных организаций можно с помощью так называемой диаграммы treemap (общепринятого русского эвивалента названию пока нет, поэтому будем пользоваться англоязычным). На диаграмме ниже (`r pic_nums("All_DPO_Treemap")`) сообношения площадей прямоугольников равны соотношению числу организаций, реализующих программы ДПО, в субъектах федерации, федеральных округах и в целом в стране. Цифры в подписях на диаграмме обозначают соответствующие проценты числа учреждений к суммарному по стране их числу.
+
+Видно, что больше всего организаций в Поволжском федеральном округе (22,31%). Центральный федеральный округ почти равен Поволжскому (22,26%, менее 0.1% разницы). Южный (12,17%), Сибирский (12,05%), Северо-Западный (10,83) и Уральский (10,64) примерно равны между собой и каждый из них примерно вдвое меньше Поволжского или Центрального. Меньше всего учреждений в Дальневосточном (6,36) и Северо-Кавказском (3,38) федеральном округах.
+
+Очевидно, для более глубокого глубокого анализа было бы полезно сравнить число учреждений по округам и субъектам, нормированное на численность населения и численность занятых. **Пока данные сравнения не выполнено (задача на будущее)**.
+
+```{r echo = FALSE, out.width = '100%'}
+
+pic_nums(name = "All_DPO_Treemap", caption = "Представление соотношения числа учреждений, реализующих программы ДПО по федеральным округам и субъектам федерации", display = FALSE)
+
+#Собираем сабсет из таблицы 11 для treemap
+subset12 <- data.table(FO_name = tab11$FO_name, Subj_name = tab11$Subj_Name, Total_Value = tab11$Total_Value, Subj_pcnt = round(tab11$Total_Value / sum(tab11$Total_Value) * 100, 2))
+
+#Считаю сумму организаций по федеральным округам
+subset12a <- aggregate(Total_Value ~ FO_name, tab11, sum)
+
+#Добавляю столбик с суммой по федеральным округм в subset12, в этот момет у меня меняют заглавия чать столбцов в переменной subset12
+subset12 <- inner_join(subset12, subset12a, by = "FO_name")
+
+#Добавляю столбик в subset12 c долей федерального округа в суммарной численности организаций
+subset12$FO_pcnt <- round(subset12$Total_Value.y / sum(subset12$Total_Value.x) * 100, 2)
+
+#Добавляю поля для использования в treemap(), с тем, чтобы метки ФО и субъектов шли с процентами
+subset12$FO_Label <- paste(subset12$FO_name, subset12$FO_pcnt, sep = " \n")
+subset12$Subj_Label <- paste(subset12$Subj_name, subset12$Subj_pcnt, sep = " \n")
+
+#Переименовываю столбец, а то treemap() ругается на импена с точкой (на самом деле нет)
+#names(subset12)[names(subset12) == 'Total_Value.x'] <- 'Total_Value' 
+
+#tab11$Label1 <-paste(tab11$Subj_Name, tab11$Total_Value, sep = ",\n") # Этого делать нельзя, повлечет изменение вывода таблицы 1.1 или не повлечет? Если запускать с начала и по порядку??
+
+treemap(subset12, #Your data frame object
+        index = c("FO_Label", "Subj_Label") ,  #A list of your categorical variables
+        vSize = "Total_Value.x" , #This is your quantitative variable
+        title = "Соотношение числа учредждений, реализующий программы ДПО, %"
+        )
+```
+
+`r pic_nums("All_DPO_Treemap")`
+
+На следующем рисунке (`r pic_nums("All_DPO_by_type")`) представлено распределение учреждений по типам. Среди таковых больше всего оказалось профессиональных образовательных организаций (2044). Следующая по численности группа -- организации ДПО (1981), затем идут организации ВПО (1121). Самая малочисленная группа организаций, реализующих программы ДПО -- научные организации, таких набралось 137. Наконец, довольно многочисленная группа, отнесенная к категории "иные организации". Какие организизации отнесены к данному типу, к сожалению, из имеющихся данных установить невозможно. 
+
+
+```{r echo = FALSE, out.width = '100%'}
+#Гистограмма распределения организаций по численности в разрезе федеральных округов
+
+label_sum_by_type <- aggregate(number~type, subset11, sum) #Создаем таблицу для подписей суммированных столбцов в гистограмме
+
+pic_nums(name = "All_DPO_by_type", caption = "Распределение числа учреждений, реализующих программы ДПО по типам с разбивкой по федеральным округам", display = FALSE)
+
+gist_type_by_FO <- ggplot(subset11, aes(x = reorder(type, -number, sum), y = number)) + 
+                      geom_col(aes(fill=FO_name)) +
+                      theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+                      geom_text(data = label_sum_by_type, aes(x = type, number + 200, label = number, fill = NULL)) +
+                      labs(title="Распределение числа учреждений, реализующих программы ДПО", 
+                      subtitle="по типам учтеждений в разрезе по федеральным округм ",
+                      y = "количество организации", x = "типы организации", type = "федеральный округ") +
+                      scale_fill_discrete(name = "Федеральный округ: ") +
+                      theme(plot.title = element_text(hjust = .5)) +
+                      theme(plot.subtitle = element_text(hjust = .5)) +
+                      theme(axis.text = element_text(size = 10))
+gist_type_by_FO
+
+
+```
+`r pic_nums("All_DPO_by_type")`
+
+На следующем рисунке (`r pic_nums("Fraction_Type_By_Subj")`) представленая структура учреждений по типам в разрезе субъектов федерации. В отличие от диаграммы выше (`r pic_nums("All_DPO_Org_By_Subj")`), распредление представлено как доли типов учреждений в общей численности учреждений по субъектам федерации. Субъекты на диаграмме отсортированы по суммарной численноти учреждений в субъекте (аналогично гистограмме на рисунке `r pic_nums("All_DPO_Org_By_Subj", display = "num")`). Данное представление пока не дает возможность выявить какие-либо закономерности в распределении организаций по типам. Для дальшейшего исследования возможных закономерностей представляется целесообразным провести кластеризацию субъектов на основе распределения по типам и интерпритация отличий кластеров.
+
+```{r echo = FALSE,  fig.width=10,fig.height=11}
+
+pic_nums(name = "Fraction_Type_By_Subj", caption = "Распределение долей типов учреждений, реализующих программы ДПО по типам с разбивкой по субъектам федерации", display = FALSE)
+
+gist_pcnt_by_Subj <- ggplot(subset11, aes(x = reorder(Subj_name, number, sum), y = number, fill = type)) + 
+       geom_bar(stat = "identity", position = "fill") +
+       labs(title="Нормализованное распределение числа учреждений, реализующих программы ДПО", 
+       subtitle="по субъектам федерации в разбивке по типам учтеждений",
+       y = "Доля организацй", x = "Субъект федерации", type = "Тип организации") +
+       scale_fill_discrete(name = "Тип организации: ") +
+       theme(plot.title = element_text(hjust = .5)) +
+       theme(plot.subtitle = element_text(hjust = .5)) +
+       theme(axis.text = element_text(size = 10)) +
+coord_flip()
+
+gist_pcnt_by_Subj
+```
+
+`r pic_nums("Fraction_Type_By_Subj")`
+
+Первая попытка кластеризации субъектов федерации на основании данных о численности (в штуках) организаций различных типов дала довольно допольно просто интерпретируемый результат. Алгоритм выделил калстеры (см. рисунок (`r pic_nums("Claster_Diagr_By_Type")`)), границы которых  совпадают со ступеньками в распределении, представленном на рисунке `r pic_nums("All_DPO_Org_By_Subj", display = "num")`. То есть кластеры представляют собой группы "по размеру": в первой -- Москва (самая крупная группа из 1 субъекта), за ней Самарская и Московская области, Краснодарский край. И так далее. Эта группировка и интерпретация тривиальна и пока не представляет значительного интереса.
+
+```{r echo = FALSE, fig.width=10, fig.height=8}
+#Эксперименты с кластерным анализом
+
+#Готовим матрицу для вычисления расстояний 
+#subset13 <- tab11[, c(2, 4:8)] Потом мне понадобилась сортированная по имени субъекта таблица и см. следующую строку кода
+
+subset13 <- tab11[order(tab11$Subj_Name),][, c(2, 4:8)]
+
+#Назначаем первый столбцец именами строк
+row.names(subset13) <- subset13$Subj_Name
+subset13[1] <- NULL
+
+pic_nums(name = "Claster_Diagr_By_Type", caption = "Кластаризаця субъектов федерации по числу организаций", display = FALSE)
+
+Claster_Diagr_By_Type <- hclust(dist(subset13, method = "euclidean"), method = "complete" )
+grp1 <- cutree(Claster_Diagr_By_Type, k = 6)  # Разрезание дерева на 6 групп
+plot(Claster_Diagr_By_Type, cex = 0.7,
+    main = "Кластеризация субъектов федерации по числу образовательных организацй",
+    sub = "",
+    ylab = "Расстояние",
+    xlab = "Субъекты федерации")
+rect.hclust(Claster_Diagr_By_Type, k = 6, border = 2:5)
+```
+`r pic_nums("Claster_Diagr_By_Type")`
+
+Кластеризация субъектов по нормированному числу организаций (доле организаций каждого типа в суммарном числе учреждений в субъекте) дала результат, представленный на рисунке `r pic_nums("Claster_Diagr_By_Type_Scaled", display = "num")`. Субъекты сгруппированы в кластеры уже по-дургому. 
+
+
+```{r echo = FALSE, fig.width=10, fig.height=8}
+
+pic_nums(name = "Claster_Diagr_By_Type_Scaled", caption = "Кластаризаця субъектов федерации по нормированному (доли) числу организаций", display = FALSE)
+
+#создаю нормированнаю матрицу числа учреждений (сумма по строкам 1)
+
+subset13a <- round(subset13 / (subset13$`1`+subset13$`2`+subset13$`3`+subset13$`4`+subset13$`5`), 4)
+
+Claster_Diagr_By_Type_Scaled <- hclust(dist(subset13a, method = "euclidean"), method = "complete" )
+grp2 <- cutree(Claster_Diagr_By_Type_Scaled, k = 6)  # Разрезание дерева на 6 групп
+plot(Claster_Diagr_By_Type_Scaled, cex = 0.7,
+    main = "Кластеризация субъектов федерации по нормированному числу образовательных организаций",
+    sub = "",
+    ylab = "Расстояние, число учреждений нормировано",
+    xlab = "Субъекты федерации")
+rect.hclust(Claster_Diagr_By_Type_Scaled, k = 6, border = 2:5)
+
+
+
+
+
+```
+`r pic_nums("Claster_Diagr_By_Type_Scaled")`
+
+Чтобы наглядно представить различие выделенных групп, пересортируем диаграмму с рисунка `r pic_nums("Fraction_Type_By_Subj", display = "num")` в таком же порядке, как на дендрограмме на рисунке `r pic_nums("Claster_Diagr_By_Type_Scaled", display = "num")`. Результат представлен на рисунке `r pic_nums("Fraction_Type_By_Subj_Resorted", display = "num")`.
+
+Из него видно, что алгоритм выделил следующие группы (в порядке снизу вверх на диаграмме):
+
+* от Кабардино-Балкарской Республики до Ямало-Ненецкого автономного округа (20 штук). Субъекты, в которых большую долю по численности занимают организации ДПО;
+
+* Орловская область, Москва, Санкт-Петербург. Субъекты с значительной долей организаций ВПО и относительно меньшей долей профессиональных образовательных организаций;
+
+* от Вологодской области по Республику Марий Эл. Субъекты с примерно равными долями профессиональных образовательных организаций и орнанизаций ДПО;
+
+* Ненецкий автономный округ. Единственный субъкет, где ДПО реализуют только два типа организаций: профессиональные образовательные и иные организации;
+
+* от Республики Тыва до Республики Саха (Якутия). Субъекты с преобладающей долей профессиональных образовательных организаций;
+
+* от Липецкой области до Республики Башкортостан. Субъекты с преобладающей долей организаций ВПО.
+
+Данные кластеры вполне отчетливо выделяются на диаграмме. Но без более глубокого анализа социально-экономической обстановки в субъектах сказать о природе (возможно это случайное совпадение) такоего распределения нельзя.  **Эта задач - исследование существования (или его отсутствия) какой-либо обусловленности наличия таких групп представляется интересной задачей на будущее)**.
+
+```{r  echo = FALSE,  fig.width=10,fig.height=11}
+
+# Делаю новый сабсет, чтобы создать переменную для пересортировки с помощью reorder() столбцов внутри диаграммы с помощью aes(x = reorder... Идея такая. Есть Claster_Diagr_By_Type_Scaled$order которая задает подядок субъектов в дендрограмме Claster_Diagr_By_Type_Scaled. Мне нужен тот же подядок в gist_pcnt_by_Subj_Reorder. Для этого:
+
+# 1. Создаю таблицу с двумя столбцами: 1 номер строки от 1 до 85, второй номер субъекта на соответствущем месте в векторе Claster_Diagr_By_Type_Scaled$order
+
+order_for_gist <- as.data.table(Claster_Diagr_By_Type_Scaled$order)
+order_for_gist$Subj_Num <- c(1:85)
+colnames(order_for_gist) <- c("Order","Subj_Num")
+
+# 2. В новую таблицу запихиваю объединение inner_join из таблицы tab11( (предварительно добавив в нее столбец Subj_Num) и order_for_gist. Объединяю по по номеру субъекта (!!!Внимание в списке, отсортированном по алфавиту). 
+
+tab11_tmp <- tab11[order(tab11$Subj_Name), ]
+tab11_tmp$Order <- c(1:85)
+tab11_tmp <- inner_join(tab11_tmp, order_for_gist, by = "Order")
+
+
+#Собираем сабсет из таблицы tab11_tmp для ggplot. В этом сабсете в столбцы Subj_Num идет порядок субъекта в нормированной дендрограмме. По ней ggplot может расставить бары в гистограмме в нужном порядке.
+subset11a <- rbind(
+                 data.table(FO_name = tab11_tmp$FO_name, Subj_name = tab11_tmp$Subj_Name, type = "Организация ДПО", Subj_Num = tab11_tmp$Subj_Num, number = tab11_tmp$`1`),
+                 data.table(FO_name = tab11_tmp$FO_name, Subj_name = tab11_tmp$Subj_Name, type = "Профессиональная ОО", Subj_Num = tab11_tmp$Subj_Num, number = tab11_tmp$`2`),
+                 data.table(FO_name = tab11_tmp$FO_name, Subj_name = tab11_tmp$Subj_Name, type = "Организация ВПО", Subj_Num = tab11_tmp$Subj_Num, number = tab11_tmp$`3`),
+                 data.table(FO_name = tab11_tmp$FO_name, Subj_name = tab11_tmp$Subj_Name, type = "Научная организация", Subj_Num = tab11_tmp$Subj_Num, number = tab11_tmp$`4`),
+                 data.table(FO_name = tab11_tmp$FO_name, Subj_name = tab11_tmp$Subj_Name, type = "Иная организация", Subj_Num = tab11_tmp$Subj_Num, number = tab11_tmp$`5`)
+                 )
+
+pic_nums(name = "Fraction_Type_By_Subj_Resorted", caption = "Распределение долей типов учреждений, реализующих программы ДПО по типам с разбивкой по субъектам федерации", display = FALSE)
+
+gist_pcnt_by_Subj_Reorder <- ggplot(subset11a, aes(x = reorder(Subj_name, Subj_Num, sum), y = number, fill = type)) + 
+       geom_bar(stat = "identity", position = "fill") +
+       labs(title="Нормализованное распределение числа учреждений, реализующих программы ДПО", 
+       subtitle="по субъектам федерации в разбивке по типам учтеждений",
+       y = "Доля организацй", x = "Субъект федерации", type = "Тип организации") +
+       scale_fill_discrete(name = "Тип организации: ") +
+       theme(plot.title = element_text(hjust = .5)) +
+       theme(plot.subtitle = element_text(hjust = .5)) +
+       theme(axis.text = element_text(size = 10)) +
+coord_flip()
+
+gist_pcnt_by_Subj_Reorder
+```
+`r pic_nums("Fraction_Type_By_Subj_Resorted")`
+
+## Сведения о наличии лицензии на осуществление образовательной деятельности, общественной аккредитации  и органов  управления
+
+```{r data12_import, echo = FALSE}
+#Чтение таблицы исходных данных подраздела запись данных в переменную
+tab12 <- import_table("tab12.csv")
+
+#Факторизация переменных "Федеральный округ", "Субъект федерации"
+tab12[c("FO_name", "Subj_Name")] <- lapply(tab12[c("FO_name", "Subj_Name")], factor)
+
+```
+
+Таблица исходных данных для данного подраздела. Значения столбцов 1-12 -- число организаций (штук) имеющих:
+
+1. Лицензию на осуществление образовательной деятельности
+
+2. Прошли общественную аккредитацию
+
+3. Коллегиальные органы управления, в том числе:
+
+4. общее собрание  (конференция) работников  образовательной организации"
+      
+5. педагогический совет
+
+6. ученый совет
+
+7. попечительский совет
+
+8. управляющий совет
+
+9. наблюдательный совет
+
+10. другие
+
+11. Профессиональные союзы работников
+
+12. из строки 03 – с участием общественности (работодателей)
+
+Нумерация столбцов и показатели в столбцах в таблице `r table_nums("tab12")` соответствует номерам строк в таблице 1.2 формы 1-ПК.
+
+```{r echo = FALSE}
+table_nums(name = "tab12", caption = "Исходные данные раздела 1.2 формы 1-ПК, 2018", display = FALSE)
+```
+
+`r table_nums("tab12")`
+
+```{r tab12, echo = FALSE}
+get_dt(tab12, c("Федеральный округ" = "FO_name", "Субъект федерации" = "Subj_Name"),'tab12_data')
+```
+
+
+```{r echo = FALSE} 
+# Мысль: я должен вытащить сюда (перед упоминанием) все инициализации номеров нужны мне в разделе рисунков, чтобы нумерация была корректна в конструкции рисунки 1.8 - 1.19
+
+#Реализация
+
+pic_nums(name = "Fraction_Lic_By_Subj", caption = "Доля орагнизация, имеющих лицензию на осуществление образовательной деятельности, по субъектам федерации", display = FALSE)
+
+pic_nums(name = "Fraction_Acc_By_Subj", caption = "Доля орагнизация, прошедших общественную аккредитацию, по субъектам федерации", display = FALSE)
+
+pic_nums(name = "Fraction_Col_By_Subj", caption = "Доля орагнизация, имеющие коллегиальные органы управления, по субъектам федерации", display = FALSE)
+
+pic_nums(name = "Fraction_Conf_By_Subj", caption = "Доля орагнизаций с общим собранием (конференцией) работников, по субъектам федерации", display = FALSE)
+
+pic_nums(name = "Fraction_Pedsov_By_Subj", caption = "Доля орагнизаций, имеющих педсовет, по субъектам федерации", display = FALSE)
+
+pic_nums(name = "Fraction_Uchsov_By_Subj", caption = "Доля орагнизаций, имеющих ученый совет, по субъектам федерации", display = FALSE)
+
+pic_nums(name = "Fraction_Popechsov_By_Subj", caption = "Доля орагнизаций, имеющих попечительский совет, по субъектам федерации", display = FALSE)
+
+pic_nums(name = "Fraction_Upravsov_By_Subj", caption = "Доля орагнизаций, имеющих управляющий совет, по субъектам федерации", display = FALSE)
+
+pic_nums(name = "Fraction_Nabsov_By_Subj", caption = "Доля орагнизаций, имеющих наблюдательный совет, по субъектам федерации", display = FALSE)
+
+pic_nums(name = "Fraction_Drsov_By_Subj", caption = "Доля орагнизаций, имеющих другие коллегиальные органы управления, по субъектам федерации", display = FALSE)
+
+pic_nums(name = "Fraction_Profs_By_Subj", caption = "Доля орагнизаций, имеющих профсоюзы работников, по субъектам федерации", display = FALSE)
+
+pic_nums(name = "Fraction_Profs1_By_Subj", caption = "Доля орагнизаций, имеющих профсоюзы работников с участием общественности (работодателей), по субъектам федерации", display = FALSE)
+
+```
+
+
+С следующей серии диаграмм (рисунки `r pic_nums("Fraction_Lic_By_Subj", display = "num")` - `r pic_nums("Fraction_Profs1_By_Subj", display = "num")`) данные таблицы `r table_nums("tab12", display = "num")` представлены в графически в виде гистограмм. К сожалению, данные показатели в разрезе субъектов федерации без привлечения дополнительных данных трудно интерпретировать более содержательно, чем просто констатировать, что в таком то регионе столько % учреждений имеют педагогический совета или профсоюз, а в другом столько. 
+
+Например, представляют интерес учрежедния без лицензии. В чем причина осутствия лицензии: еще не получили, либо в процессе замены, либо ведут деятельность без лицензии вовсе? Что это за учреждения, какие программы они реализуют. На все эти вопросов, на основе имеющихся в наличии исходных данных (повтором, агрегированные по субъектам федерации), ответить нельзя. То же можно сказать и о доле учреждений с общественной аккредитацией. Было бы интересно, что это за учреждения, аккредитацию каких институтов они получили, для каких целей. **Все это хорошие темы для дальнейших исследований с привлечением более широкого и глубокого спектра данных**.
+
+По этой же причине все доли указаны к суммарному числу учреждений. Это сделано потому, что незльзя однозначно распределить типы органов управления по типам учреждений. Например нельзя уверенно сказать, что учреждения высшего образования не может иметь педагогического совета,если оно реализцет программы СПО, то почему нет.
+
+
+```{r echo = FALSE,  fig.width=10,fig.height=11}
+
+#Готовлю subset для диаграммы долей лицензированных образовательных учреждений
+subset121 <- tab12/tab11$Total_Value
+subset121$FO_name = tab11$FO_name
+subset121$Subj_Name = tab11$Subj_Name
+
+gist_pcnt_lic_by_Subj <- ggplot(subset121, aes(x = reorder(Subj_Name, `1`), y = `1`)) + 
+       geom_bar(stat = "identity", fill="#87CEEB") +
+       geom_text(aes(label = round(`1`, 2), y = - 0.02), size = 3) +
+       labs(title="Доля организаций, реализующих программы ДПО,", 
+       subtitle="имеющих лицензию на осуществление образовательной деятельности",
+       y = "Доля организацй", x = "Субъект федерации") +
+       theme(plot.title = element_text(hjust = .5)) +
+       theme(plot.subtitle = element_text(hjust = .5)) +
+       theme(axis.text = element_text(size = 10)) +
+coord_flip()
+
+gist_pcnt_lic_by_Subj
+
+```
+
+`r pic_nums("Fraction_Lic_By_Subj")`
+
+```{r echo = FALSE,  fig.width=10,fig.height=11}
+
+gist_pcnt_acc_by_Subj <- ggplot(subset121, aes(x = reorder(Subj_Name, `2`), y = `2`)) + 
+       geom_bar(stat = "identity", fill="#20B2AA") +
+       geom_text(aes(label = round(`2`, 2), y = - 0.02), size = 3) +
+       labs(title="Доля организаций, реализующих программы ДПО,", 
+       subtitle="прошедших общественную аккредитацию",
+       y = "Доля организацй", x = "Субъект федерации") +
+       theme(plot.title = element_text(hjust = .5)) +
+       theme(plot.subtitle = element_text(hjust = .5)) +
+       theme(axis.text = element_text(size = 10)) +
+coord_flip()
+
+gist_pcnt_acc_by_Subj
+```
+
+`r pic_nums("Fraction_Acc_By_Subj")`
+
+```{r echo = FALSE,  fig.width=10,fig.height=11}
+
+gist_pcnt_col_by_Subj <- ggplot(subset121, aes(x = reorder(Subj_Name, `3`), y = `3`)) + 
+       geom_bar(stat = "identity", fill="#8A2BE2") +
+       geom_text(aes(label = round(`3`, 2), y = - 0.02), size = 3) +
+       labs(title="Доля организаций, реализующих программы ДПО,", 
+       subtitle="имеющие коллегиальные органы управления",
+       y = "Доля организацй", x = "Субъект федерации") +
+       theme(plot.title = element_text(hjust = .5)) +
+       theme(plot.subtitle = element_text(hjust = .5)) +
+       theme(axis.text = element_text(size = 10)) +
+coord_flip()
+
+gist_pcnt_col_by_Subj
+```
+
+`r pic_nums("Fraction_Col_By_Subj")`
+
+```{r echo = FALSE,  fig.width=10,fig.height=11}
+
+gist_pcnt_conf_by_Subj <- ggplot(subset121, aes(x = reorder(Subj_Name, `4`), y = `4`)) + 
+       geom_bar(stat = "identity", fill="#FFE4B5") +
+       geom_text(aes(label = round(`4`, 2), y = - 0.02), size = 3) +
+       labs(title="Доля организаций, реализующих программы ДПО,", 
+       subtitle="с общим собранием (конференцией) работников",
+       y = "Доля организацй", x = "Субъект федерации") +
+       theme(plot.title = element_text(hjust = .5)) +
+       theme(plot.subtitle = element_text(hjust = .5)) +
+       theme(axis.text = element_text(size = 10)) +
+coord_flip()
+
+gist_pcnt_conf_by_Subj
+```
+
+`r pic_nums("Fraction_Conf_By_Subj")`
+
+```{r echo = FALSE,  fig.width=10,fig.height=11}
+
+gist_pcnt_pedsov_by_Subj <- ggplot(subset121, aes(x = reorder(Subj_Name, `5`), y = `5`)) + 
+       geom_bar(stat = "identity", fill="#FFA500") +
+       geom_text(aes(label = round(`5`, 2), y = - 0.02), size = 3) +
+       labs(title="Доля организаций, реализующих программы ДПО,", 
+       subtitle="имеющих педагогический совет",
+       y = "Доля организацй", x = "Субъект федерации") +
+       theme(plot.title = element_text(hjust = .5)) +
+       theme(plot.subtitle = element_text(hjust = .5)) +
+       theme(axis.text = element_text(size = 10)) +
+coord_flip()
+
+gist_pcnt_pedsov_by_Subj
+```
+
+`r pic_nums("Fraction_Pedsov_By_Subj")`
+
+```{r echo = FALSE,  fig.width=10,fig.height=11}
+
+gist_pcnt_uchsov_by_Subj <- ggplot(subset121, aes(x = reorder(Subj_Name, `6`), y = `6`)) + 
+       geom_bar(stat = "identity", fill="#E9967A") +
+       geom_text(aes(label = round(`6`, 2), y = - 0.02), size = 3) +
+       labs(title="Доля организаций, реализующих программы ДПО,", 
+       subtitle="имеющих ученый совет",
+       y = "Доля организацй", x = "Субъект федерации") +
+       theme(plot.title = element_text(hjust = .5)) +
+       theme(plot.subtitle = element_text(hjust = .5)) +
+       theme(axis.text = element_text(size = 10)) +
+coord_flip()
+
+gist_pcnt_uchsov_by_Subj
+```
+
+`r pic_nums("Fraction_Uchsov_By_Subj")`
+
+```{r echo = FALSE,  fig.width=10,fig.height=11}
+
+gist_pcnt_popechsov_by_Subj <- ggplot(subset121, aes(x = reorder(Subj_Name, `7`), y = `7`)) + 
+       geom_bar(stat = "identity", fill="#2E8B57") +
+       geom_text(aes(label = round(`7`, 2), y = - 0.02), size = 3) +
+       labs(title="Доля организаций, реализующих программы ДПО,", 
+       subtitle="имеющих попечительский совет",
+       y = "Доля организацй", x = "Субъект федерации") +
+       theme(plot.title = element_text(hjust = .5)) +
+       theme(plot.subtitle = element_text(hjust = .5)) +
+       theme(axis.text = element_text(size = 10)) +
+coord_flip()
+
+gist_pcnt_popechsov_by_Subj
+```
+
+`r pic_nums("Fraction_Popechsov_By_Subj")`
+
+```{r echo = FALSE,  fig.width=10,fig.height=11}
+
+gist_pcnt_upravsov_by_Subj <- ggplot(subset121, aes(x = reorder(Subj_Name, `8`), y = `8`)) + 
+       geom_bar(stat = "identity", fill="#20B2AA") +
+       geom_text(aes(label = round(`8`, 2), y = - 0.02), size = 3) +
+       labs(title="Доля организаций, реализующих программы ДПО,", 
+       subtitle="имеющих управляющий совет",
+       y = "Доля организацй", x = "Субъект федерации") +
+       theme(plot.title = element_text(hjust = .5)) +
+       theme(plot.subtitle = element_text(hjust = .5)) +
+       theme(axis.text = element_text(size = 10)) +
+coord_flip()
+
+gist_pcnt_upravsov_by_Subj
+```
+
+`r pic_nums("Fraction_Upravsov_By_Subj")`
+
+```{r echo = FALSE,  fig.width=10,fig.height=11}
+
+gist_pcnt_nabsov_by_Subj <- ggplot(subset121, aes(x = reorder(Subj_Name, `9`), y = `9`)) + 
+       geom_bar(stat = "identity", fill="#6495ED") +
+       geom_text(aes(label = round(`9`, 2), y = - 0.02), size = 3) +
+       labs(title="Доля организаций, реализующих программы ДПО,", 
+       subtitle="имеющих наблюдательный совет",
+       y = "Доля организацй", x = "Субъект федерации") +
+       theme(plot.title = element_text(hjust = .5)) +
+       theme(plot.subtitle = element_text(hjust = .5)) +
+       theme(axis.text = element_text(size = 10)) +
+coord_flip()
+
+gist_pcnt_nabsov_by_Subj
+```
+
+`r pic_nums("Fraction_Nabsov_By_Subj")`
+
+```{r echo = FALSE,  fig.width=10,fig.height=11}
+
+gist_pcnt_drsov_by_Subj <- ggplot(subset121, aes(x = reorder(Subj_Name, `10`), y = `10`)) + 
+       geom_bar(stat = "identity", fill="#F0E68C") +
+       geom_text(aes(label = round(`10`, 2), y = - 0.02), size = 3) +
+       labs(title="Доля организаций, реализующих программы ДПО,", 
+       subtitle="имеющих другие коллегиальные органы управления",
+       y = "Доля организацй", x = "Субъект федерации") +
+       theme(plot.title = element_text(hjust = .5)) +
+       theme(plot.subtitle = element_text(hjust = .5)) +
+       theme(axis.text = element_text(size = 10)) +
+coord_flip()
+
+gist_pcnt_drsov_by_Subj
+```
+
+`r pic_nums("Fraction_Drsov_By_Subj")`
+
+```{r echo = FALSE,  fig.width=10,fig.height=11}
+
+gist_pcnt_profs_by_Subj <- ggplot(subset121, aes(x = reorder(Subj_Name, `11`), y = `11`)) + 
+       geom_bar(stat = "identity", fill="#5F9EA0") +
+       geom_text(aes(label = round(`11`, 2), y = - 0.02), size = 3) +
+       labs(title="Доля организаций, реализующих программы ДПО,", 
+       subtitle="имеющих профсоюзы работников",
+       y = "Доля организацй", x = "Субъект федерации") +
+       theme(plot.title = element_text(hjust = .5)) +
+       theme(plot.subtitle = element_text(hjust = .5)) +
+       theme(axis.text = element_text(size = 10)) +
+coord_flip()
+
+gist_pcnt_profs_by_Subj
+```
+
+`r pic_nums("Fraction_Profs_By_Subj")`
+
+```{r echo = FALSE,  fig.width=10,fig.height=11}
+
+gist_pcnt_profs1_by_Subj <- ggplot(subset121, aes(x = reorder(Subj_Name, `12`), y = `12`)) + 
+       geom_bar(stat = "identity", fill="#339933") +
+       geom_text(aes(label = round(`12`, 2), y = - 0.02), size = 3) +
+       labs(title="Доля организаций, реализующих программы ДПО,", 
+       subtitle="имеющих профсоюзы работников с участием общаственности (работодателей)",
+       y = "Доля организацй", x = "Субъект федерации") +
+       theme(plot.title = element_text(hjust = .5)) +
+       theme(plot.subtitle = element_text(hjust = .5)) +
+       theme(axis.text = element_text(size = 10)) +
+coord_flip()
+
+gist_pcnt_profs1_by_Subj
+```
+
+`r pic_nums("Fraction_Profs1_By_Subj")`
+
+## Сведения об образовательных программах, реализуемых организацией
+
+```{r data13_import,  echo = FALSE}
+#Чтение таблицы исходных данных подраздела 1.3 и запись данных в переменную
+tab13 <- import_table("tab13.csv")
+
+#Преобразование столбцов FO_name, Subj_name, Col_num в факторы
+tab13[c("FO_name", "Subj_Name", "Col_num")] <- lapply(tab13[c("FO_name", "Subj_Name", "Col_num")] , factor)
+```
+
+
+```{r echo = FALSE}
+table_nums(name = "tab13", caption = "Исходные данные раздела 1.3 формы 1-ПК, 2018", display = FALSE)
+```
+
+Таблица исходных данных для данного подраздела имеет более сложную конструкцию: содержнания показателей в столбцах дополнительно определяются "срезами" (столбец 3 таблицы). В таблице `r table_nums("tab13", display = "num")` номер среза показателя соответствует номерам столбцов в таблице 1.3 формы 1-ПК, а номера стобцов -- соответственно номерам строк. Таким образом, значение в столбце 1 может быть числом реализованных программы повышения квалификации (единиц) (срез 3), числом слушателей, обученных по программы повышения квалификации (человек) (срез 5) и так далее. Ниже приведен список показателей и срезов.
+
+Показатели:
+
+1. Программы повышения квалификации – всего (сумма показателей 2 и 3)
+2. Программы повышения квалификации объемом от 16 до 72 часов
+3. Программы повышения квалификации объемом  72 часа и выше
+4. Программы профессиональной переподготовки – всего (сумма 5 и  6)
+5. Программы профессиональной переподготовки объемом  от 250 до 500 часов
+6. Программы профессиональной переподготовки 500 часов и выше
+
+Срезы:
+
+3. Число реализованных образовательных программ всего, единиц	
+4. Из них (1) прошли профессионально-общественную аккредитацию работодателями и их объединениями
+5. Всего слушателей, обученных по программам, человек
+6. Число программ (из графы 3), реализованных с использованием сетевой формы
+7. Численность слушателей, обученных (из графы 5) по программам с использованием сетевой формы - всего
+8. В том числе (из 7) с использованием ресурсов иностранных организаций
+9. Общее число заключенных договоров с организациями на реализацию образовательных программ с использованием сетевой формы
+10. Из них (из  9) число заключенных договоров  с использованием ресурсов иностранных организаций
+11. Число организаций, с которыми заключены договоры на реализацию образовательных программ с использованием сетевой формы, всего
+12. В том числе (из 11) число иностранных организаций
+13. Число программ (из 3), реализованных с применением электронного обучения
+14. Численность слушателей (из 5), обученных  по программам с применением электронного обучения
+15. В том числе (из 14) с применением исключительно электронного обучения
+16. Число программ (из 3), реализованных с применением дистанционных образовательных технологий
+17. Численность слушателей (из графы 5), обученных по программам с применением дистанционных образовательных технологий
+18. В том числе (из  17) с применением исключительно дистанционных образовательных технологий
+
+
+`r table_nums("tab13")`
+
+```{r tab13, echo = FALSE}
+get_dt(tab13, ,'tab13_data')
+
+```
+
+```{r echo = FALSE}
+table_nums(name = "tab13_subs15", caption = "Соотрношение числа учреждений и числа программ ПК и ПП по регионам", display = FALSE)
+```
+
+На следующей гистограмме представлено число программ повышения и профессиональной переподготовки, реализуемых учреждениями в субъектах федерации. Оно ожидаемо похоже на распределение, представленное на рисунке `r pic_nums("All_DPO_Org_By_Subj", display = "num")`. Сопоставление числа учреждений и числа реализуемых ими программ для каждого субъекта федерации представлено в таблице `r table_nums("tab13_subs15", display = "num")`.
+
+Первая десятка  регионов по числу организаций, реализующих программы ДПО совпадает с первой десяткой регионов по числу реализуемых программ ДПО на 70%. Вот эти семь регионов (перечислены в порядке убывания числа рализуемых программ ДПО):
+
+* Москва ;
+* Самарская область;
+* Новосибирская область;
+* Санкт-Петербург;
+* Краснодарский край;
+* Ростовская область;
+* Республика Тарарстан.
+
+Это полне очевидно, учитывая что при подсчете числа реализуемых в регионе программ они просто складываются по учреджениями, и одна и та же программа, реализуемая двумя (тремя и т. д.) разными организациями, считается как две (три и так далее). А вот анализ первой десятки организаций по среднему числу реализцуемых программ на организацию дает более богатую почву для размышлений. Во-первых, эта десятка тоже очень сильно (на 60%) совпадаетс с десяткой регионов - лидеров по числу учреждений (перечислены в порядке убывания числа реализуемых программ на одну организацию):
+
+* Республика Башкортостан (114);
+* Тюменская область (113);
+* Москва (106); 
+* Новосибирская область (85);
+* Самарская область (59);
+* Санкт-Петербург (58).
+
+**Что это означает, и какие рациональные вопросы можно поставить опираясь на это???**
+
+
+
+
+```{r tab13subset, echo = FALSE, fig.width=10,fig.height=11}
+
+pic_nums(name = "All_Programms_By_Subj", caption = "Число программ ПК и ПП, реализуемых организациями ДПО по субъектам федерации", display = FALSE)
+
+#собираю новый сабсет для гистограммы, нужны певый столбец и вторая, третья, пятая и шестая строки таблицы 1.3 Формы 1-ПК
+
+subset14 <- rbind(
+                  data.table(FO_name = tab13$FO_name, Subj_name = tab13$Subj_Name, type = "1. Программа ПК объемом от 16 до 72 часов", number = tab13$`2`, Col_num = tab13$Col_num),
+                  data.table(FO_name = tab13$FO_name, Subj_name = tab13$Subj_Name, type = "2. Программа ПК объемом 72 часа и выше", number = tab13$`3`, Col_num = tab13$Col_num),
+                  data.table(FO_name = tab13$FO_name, Subj_name = tab13$Subj_Name, type = "3. Программа ПП объемом от 250 до 500 часов", number = tab13$`5`, Col_num = tab13$Col_num),
+                  data.table(FO_name = tab13$FO_name, Subj_name = tab13$Subj_Name, type = "4. Программа ПП объемом от 500 часов и выше", number = tab13$`6`, Col_num = tab13$Col_num)
+)
+subset14a <- subset14[subset14$Col_num == '3']
+
+# Факторизуем столбец type
+subset14a$type <- factor(subset14a$type)
+
+#Стоим гистограмму численности организаций
+gist_programs_by_type_and_subj <- ggplot(subset14a, aes(x = reorder(Subj_name, number, sum), y = number)) + 
+       geom_col(aes(fill= type), position = position_stack(reverse = TRUE), width = 0.7) + 
+       labs(title="Распределение числа программ ПК и ПП, реализующих образовательными организациями,", 
+       subtitle="по субъектам федерации в разбивке по типам (объему) программ",
+       y = "Число программ", x = "Субъект федерации", type = "Тип программы") +
+       scale_fill_discrete(name = "Тип программы: ") +
+       theme(plot.title = element_text(hjust = .5)) +
+       theme(plot.subtitle = element_text(hjust = .5)) +
+       theme(axis.text.y = element_text(size = 10)) +
+       theme(legend.position = c(1,1), legend.justification = c(1,2),
+              legend.background = element_blank()) +
+coord_flip()
+
+gist_programs_by_type_and_subj
+
+```
+
+`r pic_nums("All_Programms_By_Subj")`
+
+`r table_nums("tab13_subs15")`
+
+```{r echo = FALSE, out.width = '100%'}
+# Собираю таблицу для вывода сопоставления числа учреждений и числа программ на регион
+
+# Для этого беру таблицу tab13 и отфильтровывваю число программ (срез/строка 3)
+
+subset15 <- tab13[tab13$Col_num == '3', ]
+
+# Объединяю полученную таблицу с таблицей tab11  по полю "Субъект федерации"
+
+subset15 <- inner_join(subset15, tab11, by = "Subj_Name")
+
+# Считаю общее количество программ ПК и ПП (сумма столбца 1.х и 4.х) и записываюти все в новый столбец, считаю показатель "Число программ на учреждение" и записываю в новый столбец
+
+subset15$Total_Porg <- subset15$`1.x` + subset15$`4.x`
+subset15$Porg_per_Org <- round(subset15$Total_Porg / subset15$Total_Value,0)
+
+subset13 <- tab11[order(tab11$Subj_Name),][, c(2, 4:8)]
+
+# Вывожу отдельные столбцы полученной таблицы на экран
+
+get_dt(subset15[order(subset15$Total_Porg, decreasing = TRUE), ][, c(1, 2, 11, 17, 18)], c("Федеральный округ" = "FO_name.x", "Субъект федерации" = "Subj_Name", "Всего организаций" = "Total_Value", "Всего программ ПК и ПП" = "Total_Porg", "Программ на организацию" = "Porg_per_Org"), 'subset15_data') 
+
+```
+
+
+
+## Структура образовательной организации дополнительного профессионального образования
+
+```{r data14_import, echo = FALSE}
+#Чтение таблицы исходных данных подраздела 1.4 и запись данных в переменную
+tab14 <- import_table("tab14.csv")
+
+#Преобразование столбцов FO_name, Subj_name, Col_num в факторы
+tab14[c("FO_name", "Subj_Name")] <- lapply(tab14[c("FO_name", "Subj_Name")] , factor)
+```
+
+Номера столбцов таблицы `r table_nums("tab14", display = "num")` соответствуют номерам строк таблицы 1.4 формы 1-ПК. Значение столбцов таблицы исходны данных этого раздела -- количество (единиц) структурных подразделений следующих типов : 
+
+1. Научно-исследовательские подразделения (институты, центры, отделы, секторы и т.п.).
+2. Структурные подразделения, осуществляющие образовательную деятельность.  
+3. Из них (из 2) подразделений по реализации дополнительных  профессиональных программ. 
+4. Лаборатории.
+5. Из них (из 4) созданные  с участием организаций, осуществляющих научную и (или) научно-техническую деятельность.
+6. Научно-образовательные центры.
+7. Конструкторские бюро.
+8. Редакционно-издательские подразделения.
+9. Учебные базы практик.
+10 Учебные и производственные мастерские.
+11. Аспирантура.
+12. Докторантура.
+13. Ординатура.
+14. Учебный центр профессиональной квалификации (многофункциональный центр прикладных квалификаций).
+15. Другие.
+
+
+
+```{r echo = FALSE}
+table_nums(name = "tab14", caption = "Исходные данные раздела 1.4 формы 1-ПК, 2018", display = FALSE)
+```
+
+`r table_nums("tab14")`
+
+```{r tab14,  echo = FALSE}
+get_dt(tab14, c("Федеральный округ" = "FO_name", "Субъект федерации" = "Subj_Name"),'tab14_data')
+
+```
+
+
+## Специализированные структурные образовательные подразделения организации, созданные для реализации дополнительных профессиональных программ
+
+```{r data15_import,  echo = FALSE}
+#Чтение таблицы исходных данных подраздела 1.5 и запись данных в переменную
+tab15 <- import_table("tab15.csv")
+
+#Преобразование столбцов FO_name, Subj_name, Col_num в факторы
+tab15[c("FO_name", "Subj_Name")] <- lapply(tab15[c("FO_name", "Subj_Name")] , factor)
+```
+
+Самая простая таблица в разделе. Столбец "1" содержит число специализированных  структурных образовательных подразделений в орагнизациях, реализующих программы ДПО, созданных для реализации дополнительных профессиональных программ.
+
+
+```{r echo = FALSE}
+table_nums(name = "tab15", caption = "Исходные данные раздела 1.5 формы 1-ПК, 2018", display = FALSE)
+```
+
+`r table_nums("tab15")`
+
+```{r tab15,  echo = FALSE}
+get_dt(tab15, c("Федеральный округ" = "FO_name", "Субъект федерации" = "Subj_Name"),'tab15_data')
+
+```
+
+## Сведения о филиалах и представительствах  организации дополнительного профессионального образования
+
+
+```{r data16_import, echo = FALSE}
+#Чтение таблицы исходных данных подраздела 1.6 и запись данных в переменную
+tab16 <- import_table("tab16.csv")
+
+#Преобразование столбцов FO_name, Subj_name, Col_num в факторы
+tab16[c("FO_name", "Subj_Name", "Col_num")] <- lapply(tab16[c("FO_name", "Subj_Name", "Col_num")] , factor)
+```
+
+Большое количество столбцов (показателей) и строк (срезов) таблицы `r table_nums("tab16", display = "num")` исходных данных обусловлена сложной структурой соответствующей ей таблицы 1.6 формы 1-ПК. Для каждой отчитывающейся организации предусмотрена возможность занести данные о 26 филиалах и 26 представительствах, что в сумме дает 52 строки в таблице 1.6 формы 1-ПК и отражены как 52 столбца в таблице `r table_nums("tab16", display = "num")`. При агрегировании отчетов по форме 1-ПК отдельных образовательных учреждений к уровню субъектов федерации число филиалов и представительств по субътам просто было сложено, в результате чего в таблицах 1.6 сводных по субъектам форм имели записи только в 1 строке. Таким образом, в представленноый ниже таблице ненулевым является только столбец "1". Он содержит число филиалов и представительств организации дополнительного профессионального образования. Информация о территориальном расположении филиалов и представительств (столбцы 9 и 10 таблицы 1.6 формы 1-ПК) -- утеряна при агрегации (складывать коды ОКСМ и ОКАТО бессмысленно). Срезы дают информацию о видах программ, реализцемых в этих филиалах и представительствах: 
+
+3. Программы повышения квалификации.
+4. Программы профессиональной переподготовки.
+5. Программы подготовки научно-педагогических кадров.
+6. Программы ординатуры
+7. Программы профессионального обучения.
+8. Дополнительные  общеразвивающие  программы
+9. Цифровой код страны по ОКСМ (пустые значения, невозможно агрегировать)
+10. Код территории Российской Федерации по ОКАТО (пустые значения, невозможно агрегировать)
+
+
+```{r echo = FALSE}
+table_nums(name = "tab16", caption = "Исходные данные раздела 1.6 формы 1-ПК, 2018", display = FALSE)
+```
+
+`r table_nums("tab16")`
+
+```{r tab16, echo = FALSE}
+get_dt(tab16, ,'tab16_data')
+
+```

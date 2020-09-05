@@ -1,0 +1,8 @@
+c("Федеральный округ" = "FO_name", "Субъект федерации" = "Subj_Name", "Total_Value" = "Всего")
+
+
+```{r tab11formation, cache = TRUE, echo = FALSE}
+#Вывод таблицы исходных в документ с использованием библиотеки datatable
+datatable(select(tab11, c("FO_name", "Subj_Name", "1", "2", "3", "4", "5", "Total_Value")), colnames = c("Федеральный округ", "Субъект федерации", "1", "2", "3", "4", "5", "Всего"), options = list(pageLength = 85))
+
+```

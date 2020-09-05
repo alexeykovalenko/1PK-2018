@@ -1,0 +1,3 @@
+book_filename: "1PK-2018"
+output_dir: "docs"
+# before_chapter_script: ["common_scripts.r"]
