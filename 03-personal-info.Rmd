@@ -1,0 +1,257 @@
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning=FALSE, message=FALSE)
+```
+
+
+```{r}
+library(tidyverse)
+library(kableExtra)
+library(data.table)
+library(ggplot2)
+library(cluster) #Библиотека для каластерного анализа
+library(captioner) #Библиотка для нумерации таблиц и рисунков и вообще всего
+library(treemap) #Библиотека для площадных диаграмм
+library(RColorBrewer) #Пакет для цветовых схем для диаграмм
+#library(readxl) экспериментировал с импотром из экселя
+library(DT) #экспериментировал с datatable
+#library(htmltools) экспериментировал с datatable
+```
+
+```{r}
+# Функция вывода таблицы с помощью библиотеки DT, 
+get_dt = function(top_data, col_names = c("Федеральный округ" = "FO_name", "Субъект федерации" = "Subj_Name", "Срез показателя" = "Col_num"), output_file_name) {
+  datatable(top_data, colnames = col_names, extensions = 'Buttons',
+            escape = FALSE,
+            rownames = FALSE,
+            filter = 'top',
+            options = list(searching = TRUE,
+                           pageLength = 10,
+                           lengthMenu = c(8, 10, 85, 100),
+                           dom = 'Bfrtip',
+                           buttons = 
+                               list('colvis', list(
+                                   extend = 'collection',
+                                   buttons = list(list(extend='csv',
+                                                       filename = output_file_name),
+                                                  list(extend='excel',
+                                                       filename = output_file_name),
+                                                  list(extend='pdf',
+                                                       filename= output_file_name)),
+                                   text = 'Download'
+                               )),
+                           scrollX = TRUE,
+                           pageLength = nrow(top_data))) 
+}
+
+#Функция установки счетчика нумерации для таблиц
+table_nums <- captioner(prefix = "Таблица", levels = 2)
+
+#Функция установки счетчика нумерации для таблиц
+pic_nums <- captioner(prefix = "Рисунок", levels = 2)
+
+
+#Функция для импорта данных из csv файлов в переменные R (требует имя файла в кавычках и берет из каталока data рабочей директории проекта)
+import_table = function(file_name){
+    read_delim(paste0("data/", file_name), ";", 
+                 escape_double = FALSE, locale = locale(decimal_mark = ",", 
+                 grouping_mark = "", encoding = "WINDOWS-1251"), 
+                 trim_ws = TRUE)
+}
+```
+
+# Сведения о персонале организации {#personal-info}
+
+## Распределение численности персонала по уровню образования и полу {#personal-info-demography}
+
+(без внешних совместителей и работающих по договорам гражданско-правового характера)
+
+
+```{r data31_import, echo = FALSE}
+#Чтение таблицы исходных данных подраздела запись данных в переменную
+tab31 <- import_table("tab31.csv")
+
+#Факторизация переменных "Федеральный округ", "Субъект федерации", "Срез"
+tab31[c("FO_name", "Subj_Name", "Col_num")] <- lapply(tab31[c("FO_name", "Subj_Name", "Col_num")] , factor)
+
+```
+
+
+
+```{r tab31formation, echo = FALSE}
+#Вывод таблицы 3.1 в отчет
+get_dt(tab31, , 'tab31_data')
+```
+
+## Распределение персонала по стажу работы {#personal-work-experience}
+
+(без внешних совместителей и работающих по договорам гражданско-правового характера)
+
+```{r data32_import, echo = FALSE}
+#Чтение таблицы исходных данных подраздела запись данных в переменную
+tab32 <- import_table("tab32.csv")
+
+#Факторизация переменных "Федеральный округ", "Субъект федерации", "Срез"
+tab32[c("FO_name", "Subj_Name", "Col_num")] <- lapply(tab32[c("FO_name", "Subj_Name", "Col_num")] , factor)
+
+```
+
+
+
+```{r tab32formation, echo = FALSE}
+#Вывод таблицы 3.2 в отчет
+get_dt(tab32, , 'tab32_data')
+```
+
+## Численность внешних совместителей,  работающих по договорам гражданско - правового характера и на условиях внутреннего совместительства и совмещения профессий (должностей) {byworker-info}
+
+### Численность внешних совместителей {byworker-external}
+
+```{r data331_import, echo = FALSE}
+#Чтение таблицы исходных данных подраздела запись данных в переменную
+tab331 <- import_table("tab331.csv")
+
+#Факторизация переменных "Федеральный округ", "Субъект федерации", "Срез"
+tab331[c("FO_name", "Subj_Name", "Col_num")] <- lapply(tab331[c("FO_name", "Subj_Name", "Col_num")] , factor)
+
+```
+
+
+
+```{r tab331formation, echo = FALSE}
+#Вывод таблицы 3.3.1 в отчет
+get_dt(tab331, , 'tab331_data')
+```
+
+
+### Численность работников, выполняющих  работы по договорам гражданско - правового характера {byworker-contract}
+
+```{r data332_import, echo = FALSE}
+#Чтение таблицы исходных данных подраздела запись данных в переменную
+tab332 <- import_table("tab332.csv")
+
+#Факторизация переменных "Федеральный округ", "Субъект федерации", "Срез"
+tab332[c("FO_name", "Subj_Name", "Col_num")] <- lapply(tab332[c("FO_name", "Subj_Name", "Col_num")] , factor)
+
+```
+
+
+
+```{r tab332formation, echo = FALSE}
+#Вывод таблицы 3.3.1 в отчет
+get_dt(tab332, , 'tab332_data')
+```
+
+
+### Численность работников, осуществляющих образовательную деятельность по реализации  дополнительных профессиональных  программ на условиях внутреннего совместительства и совмещения профессий (должностей) {byworker-internal}
+
+```{r data333_import, echo = FALSE}
+#Чтение таблицы исходных данных подраздела запись данных в переменную
+tab333 <- import_table("tab333.csv")
+
+#Факторизация переменных "Федеральный округ", "Субъект федерации", "Срез"
+tab333[c("FO_name", "Subj_Name", "Col_num")] <- lapply(tab333[c("FO_name", "Subj_Name", "Col_num")] , factor)
+
+```
+
+
+
+```{r tab333formation, echo = FALSE}
+#Вывод таблицы 3.3.1 в отчет
+get_dt(tab333, , 'tab333_data')
+```
+
+## Сведения о дополнительном профессиональном образовании персонала {personal-education}
+
+
+```{r data34_import, echo = FALSE}
+#Чтение таблицы исходных данных подраздела запись данных в переменную
+tab34 <- import_table("tab34.csv")
+
+#Факторизация переменных "Федеральный округ", "Субъект федерации", "Срез"
+tab34[c("FO_name", "Subj_Name", "Col_num")] <- lapply(tab34[c("FO_name", "Subj_Name", "Col_num")] , factor)
+
+```
+
+
+
+```{r tab34formation, echo = FALSE}
+#Вывод таблицы 3.4 в отчет
+get_dt(tab34, , 'tab34_data')
+```
+
+
+## Сведения об иностранных работниках {#foreign-personal}
+
+
+```{r data35_import, echo = FALSE}
+#Чтение таблицы исходных данных подраздела запись данных в переменную
+tab35 <- import_table("tab35.csv")
+
+#Факторизация переменных "Федеральный округ", "Субъект федерации", "Срез"
+tab35[c("FO_name", "Subj_Name", "Col_num")] <- lapply(tab35[c("FO_name", "Subj_Name", "Col_num")] , factor)
+
+```
+
+
+
+```{r tab35formation, echo = FALSE}
+#Вывод таблицы 3.5 в отчет
+get_dt(tab35, , 'tab35_data')
+```
+
+## Движение работников {#movement-personal}
+
+
+```{r data36_import, echo = FALSE}
+#Чтение таблицы исходных данных подраздела запись данных в переменную
+tab36 <- import_table("tab36.csv")
+
+#Факторизация переменных "Федеральный округ", "Субъект федерации", "Срез"
+tab36[c("FO_name", "Subj_Name", "Col_num")] <- lapply(tab36[c("FO_name", "Subj_Name", "Col_num")] , factor)
+
+```
+
+
+
+```{r tab36formation, echo = FALSE}
+#Вывод таблицы 3.6 в отчет
+get_dt(tab36, , 'tab36_data')
+```
+
+## Распределение персонала по  возрасту и полу {#personal-demography}
+
+### Распределение персонала без внешних совместителей и работающих по договорам гражданско-правового характера по возрасту и полу {#personal1-demography}
+
+```{r data371_import, echo = FALSE}
+#Чтение таблицы исходных данных подраздела запись данных в переменную
+tab371 <- import_table("tab371.csv")
+
+#Факторизация переменных "Федеральный округ", "Субъект федерации", "Срез"
+tab371[c("FO_name", "Subj_Name", "Col_num")] <- lapply(tab371[c("FO_name", "Subj_Name", "Col_num")] , factor)
+
+```
+
+
+
+```{r tab371formation, echo = FALSE}
+#Вывод таблицы 3.7.1 в отчет
+get_dt(tab371, , 'tab371_data')
+```
+
+### Распределение персонала, работающего на условиях внешнего совместительства, по возрасту  и полу {#by-worker-demography}
+
+```{r data372_import, echo = FALSE}
+#Чтение таблицы исходных данных подраздела запись данных в переменную
+tab372 <- import_table("tab372.csv")
+
+#Факторизация переменных "Федеральный округ", "Субъект федерации", "Срез"
+tab372[c("FO_name", "Subj_Name", "Col_num")] <- lapply(tab372[c("FO_name", "Subj_Name", "Col_num")] , factor)
+
+```
+
+
+
+```{r tab372formation, echo = FALSE}
+#Вывод таблицы 3.7.2 в отчет
+get_dt(tab372, , 'tab372_data')
+```

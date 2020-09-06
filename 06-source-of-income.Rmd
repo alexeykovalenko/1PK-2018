@@ -1,0 +1,116 @@
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning=FALSE, message=FALSE)
+```
+
+
+```{r}
+library(tidyverse)
+library(kableExtra)
+library(data.table)
+library(ggplot2)
+library(cluster) #Библиотека для каластерного анализа
+library(captioner) #Библиотка для нумерации таблиц и рисунков и вообще всего
+library(treemap) #Библиотека для площадных диаграмм
+library(RColorBrewer) #Пакет для цветовых схем для диаграмм
+#library(readxl) экспериментировал с импотром из экселя
+library(DT) #экспериментировал с datatable
+#library(htmltools) экспериментировал с datatable
+```
+
+```{r}
+# Функция вывода таблицы с помощью библиотеки DT, 
+get_dt = function(top_data, col_names = c("Федеральный округ" = "FO_name", "Субъект федерации" = "Subj_Name", "Срез показателя" = "Col_num"), output_file_name) {
+  datatable(top_data, colnames = col_names, extensions = 'Buttons',
+            escape = FALSE,
+            rownames = FALSE,
+            filter = 'top',
+            options = list(searching = TRUE,
+                           pageLength = 10,
+                           lengthMenu = c(8, 10, 85, 100),
+                           dom = 'Bfrtip',
+                           buttons = 
+                               list('colvis', list(
+                                   extend = 'collection',
+                                   buttons = list(list(extend='csv',
+                                                       filename = output_file_name),
+                                                  list(extend='excel',
+                                                       filename = output_file_name)),
+                                   text = 'Download'
+                               )),
+                           scrollX = TRUE,
+                           pageLength = nrow(top_data))) 
+}
+
+#Функция установки счетчика нумерации для таблиц
+table_nums <- captioner(prefix = "Таблица", levels = 2)
+
+#Функция установки счетчика нумерации для таблиц
+pic_nums <- captioner(prefix = "Рисунок", levels = 2)
+
+
+#Функция для импорта данных из csv файлов в переменные R (требует имя файла в кавычках и берет из каталока data рабочей директории проекта)
+import_table = function(file_name){
+    read_delim(paste0("data/", file_name), ";", 
+                 escape_double = FALSE, locale = locale(decimal_mark = ",", 
+                 grouping_mark = "", encoding = "WINDOWS-1251"), 
+                 trim_ws = TRUE)
+}
+```
+
+
+#  Финансово-экономическая деятельность организации {#economic-activity}
+
+## Распределение объема средств организации по источникам их получения и видам деятельности {#source-of-income}
+
+```{r data61_import, echo = FALSE}
+#Чтение таблицы исходных данных подраздела запись данных в переменную
+tab61 <- import_table("tab61.csv")
+
+#Факторизация переменных "Федеральный округ", "Субъект федерации", "Срез"
+tab61[c("FO_name", "Subj_Name", "Col_num")] <- lapply(tab61[c("FO_name", "Subj_Name", "Col_num")] , factor)
+
+```
+
+
+
+```{r tab61formation, echo = FALSE}
+#Вывод таблицы 6.1 в отчет
+get_dt(tab61, , 'tab61_data')
+```
+
+## Расходы организации {#expenses}
+
+```{r data62_import, echo = FALSE}
+#Чтение таблицы исходных данных подраздела запись данных в переменную
+tab62 <- import_table("tab62.csv")
+
+#Факторизация переменных "Федеральный округ", "Субъект федерации", "Срез"
+tab62[c("FO_name", "Subj_Name", "Col_num")] <- lapply(tab62[c("FO_name", "Subj_Name", "Col_num")] , factor)
+
+```
+
+
+
+```{r tab62formation, echo = FALSE}
+#Вывод таблицы 6.2 в отчет
+get_dt(tab62, , 'tab62_data')
+```
+
+## Сведения о численности и оплате труда работников организации {#salary}
+
+```{r data63_import, echo = FALSE}
+#Чтение таблицы исходных данных подраздела запись данных в переменную
+tab63 <- import_table("tab63.csv")
+
+#Факторизация переменных "Федеральный округ", "Субъект федерации", "Срез"
+tab63[c("FO_name", "Subj_Name", "Col_num")] <- lapply(tab63[c("FO_name", "Subj_Name", "Col_num")] , factor)
+
+```
+
+
+
+```{r tab63formation, echo = FALSE}
+#Вывод таблицы 6.3 в отчет
+get_dt(tab63, , 'tab63_data')
+```
+

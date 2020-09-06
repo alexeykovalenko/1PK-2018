@@ -1,0 +1,170 @@
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning=FALSE, message=FALSE)
+```
+
+
+```{r}
+library(tidyverse)
+library(kableExtra)
+library(data.table)
+library(ggplot2)
+library(cluster) #Библиотека для каластерного анализа
+library(captioner) #Библиотка для нумерации таблиц и рисунков и вообще всего
+library(treemap) #Библиотека для площадных диаграмм
+library(RColorBrewer) #Пакет для цветовых схем для диаграмм
+#library(readxl) экспериментировал с импотром из экселя
+library(DT) #экспериментировал с datatable
+#library(htmltools) экспериментировал с datatable
+```
+
+```{r}
+# Функция вывода таблицы с помощью библиотеки DT, 
+get_dt = function(top_data, col_names = c("Федеральный округ" = "FO_name", "Субъект федерации" = "Subj_Name", "Срез показателя" = "Col_num"), output_file_name) {
+  datatable(top_data, colnames = col_names, extensions = 'Buttons',
+            escape = FALSE,
+            rownames = FALSE,
+            filter = 'top',
+            options = list(searching = TRUE,
+                           pageLength = 10,
+                           lengthMenu = c(8, 10, 85, 100),
+                           dom = 'Bfrtip',
+                           buttons = 
+                               list('colvis', list(
+                                   extend = 'collection',
+                                   buttons = list(list(extend='csv',
+                                                       filename = output_file_name),
+                                                  list(extend='excel',
+                                                       filename = output_file_name)),
+                                   text = 'Download'
+                               )),
+                           scrollX = TRUE,
+                           pageLength = nrow(top_data))) 
+}
+
+#Функция установки счетчика нумерации для таблиц
+table_nums <- captioner(prefix = "Таблица", levels = 2)
+
+#Функция установки счетчика нумерации для таблиц
+pic_nums <- captioner(prefix = "Рисунок", levels = 2)
+
+
+#Функция для импорта данных из csv файлов в переменные R (требует имя файла в кавычках и берет из каталока data рабочей директории проекта)
+import_table = function(file_name){
+    read_delim(paste0("data/", file_name), ";", 
+                 escape_double = FALSE, locale = locale(decimal_mark = ",", 
+                 grouping_mark = "", encoding = "WINDOWS-1251"), 
+                 trim_ws = TRUE)
+}
+```
+
+
+#  Имущество организации {#assets}
+
+## Наличие  основных фондов {#main-funds}
+
+```{r data41_import, echo = FALSE}
+#Чтение таблицы исходных данных подраздела запись данных в переменную
+tab41 <- import_table("tab41.csv")
+
+#Факторизация переменных "Федеральный округ", "Субъект федерации", "Срез"
+tab41[c("FO_name", "Subj_Name", "Col_num")] <- lapply(tab41[c("FO_name", "Subj_Name", "Col_num")] , factor)
+
+```
+
+
+
+```{r tab41formation, echo = FALSE}
+#Вывод таблицы 4.1 в отчет
+get_dt(tab41, , 'tab41_data')
+```
+
+##  Общие сведения  о  машинах и оборудовании  (кроме вычислительной техники), используемых  в учебном процессе {#equipment}
+
+```{r data42_import, echo = FALSE}
+#Чтение таблицы исходных данных подраздела запись данных в переменную
+tab42 <- import_table("tab42.csv")
+
+#Факторизация переменных "Федеральный округ", "Субъект федерации", "Срез"
+tab42[c("FO_name", "Subj_Name", "Col_num")] <- lapply(tab42[c("FO_name", "Subj_Name", "Col_num")] , factor)
+
+```
+
+
+
+```{r tab42formation, echo = FALSE}
+#Вывод таблицы 4.2 в отчет
+get_dt(tab42, , 'tab42_data')
+```
+
+##  Характеристика здания (зданий) {#buildings}
+
+```{r data43_import, echo = FALSE}
+#Чтение таблицы исходных данных подраздела запись данных в переменную
+tab43 <- import_table("tab43.csv")
+
+#Факторизация переменных "Федеральный округ", "Субъект федерации", "Срез"
+tab43[c("FO_name", "Subj_Name", "Col_num")] <- lapply(tab43[c("FO_name", "Subj_Name", "Col_num")] , factor)
+
+```
+
+
+
+```{r tab43formation, echo = FALSE}
+#Вывод таблицы 4.3 в отчет
+get_dt(tab43, , 'tab43_data')
+```
+
+##  Наличие и использование площадей {#production-space}
+
+```{r data44_import, echo = FALSE}
+#Чтение таблицы исходных данных подраздела запись данных в переменную
+tab44 <- import_table("tab44.csv")
+
+#Факторизация переменных "Федеральный округ", "Субъект федерации", "Срез"
+tab44[c("FO_name", "Subj_Name", "Col_num")] <- lapply(tab44[c("FO_name", "Subj_Name", "Col_num")] , factor)
+
+```
+
+
+
+```{r tab44formation, echo = FALSE}
+#Вывод таблицы 4.4 в отчет
+get_dt(tab44, , 'tab44_data')
+```
+
+##  Обеспеченность обучающихся общежитиями {#hostel}
+
+```{r data45_import, echo = FALSE}
+#Чтение таблицы исходных данных подраздела запись данных в переменную
+tab45 <- import_table("tab45.csv")
+
+#Факторизация переменных "Федеральный округ", "Субъект федерации", "Срез"
+tab45[c("FO_name", "Subj_Name", "Col_num")] <- lapply(tab45[c("FO_name", "Subj_Name", "Col_num")] , factor)
+
+```
+
+
+
+```{r tab45formation, echo = FALSE}
+#Вывод таблицы 4.5 в отчет
+get_dt(tab45, , 'tab45_data')
+```
+
+##  Наличие мест общественного питания {#public-catering}
+
+```{r data46_import, echo = FALSE}
+#Чтение таблицы исходных данных подраздела запись данных в переменную
+tab46 <- import_table("tab46.csv")
+
+#Факторизация переменных "Федеральный округ", "Субъект федерации", "Срез"
+tab46[c("FO_name", "Subj_Name", "Col_num")] <- lapply(tab46[c("FO_name", "Subj_Name", "Col_num")] , factor)
+
+```
+
+
+
+```{r tab46formation, echo = FALSE}
+#Вывод таблицы 4.6 в отчет
+get_dt(tab46, , 'tab46_data')
+```
+
